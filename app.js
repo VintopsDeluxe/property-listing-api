@@ -19,7 +19,7 @@ connectDB();
 const app = express();
 app.use(express.json());
 
-// Swagger Configuration
+// Bulletproof Swagger Configuration (Immune to formatters)
 const swaggerOptions = {
     swaggerDefinition: {
         openapi: '3.0.0',
@@ -37,154 +37,133 @@ const swaggerOptions = {
                 }
             }
         },
-        security: [{ bearerAuth: [] }]
+        security: [{ bearerAuth: [] }],
+        paths: {
+            '/api/auth/register': {
+                post: {
+                    summary: 'Register a new user',
+                    tags: ['Auth'],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: { email: { type: 'string' }, password: { type: 'string' } }
+                                }
+                            }
+                        }
+                    },
+                    responses: { '201': { description: 'User registered successfully' } }
+                }
+            },
+            '/api/auth/login': {
+                post: {
+                    summary: 'Login user',
+                    tags: ['Auth'],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: { email: { type: 'string' }, password: { type: 'string' } }
+                                }
+                            }
+                        }
+                    },
+                    responses: { '200': { description: 'Returns JWT token' } }
+                }
+            },
+            '/api/properties': {
+                post: {
+                    summary: 'Create a property listing',
+                    tags: ['Properties'],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: { title: { type: 'string' }, description: { type: 'string' }, price: { type: 'number' }, location: { type: 'string' } }
+                                }
+                            }
+                        }
+                    },
+                    responses: { '201': { description: 'Property created' } }
+                },
+                get: {
+                    summary: 'Get all properties',
+                    tags: ['Properties'],
+                    parameters: [
+                        { in: 'query', name: 'page', schema: { type: 'integer' } },
+                        { in: 'query', name: 'limit', schema: { type: 'integer' } },
+                        { in: 'query', name: 'location', schema: { type: 'string' } }
+                    ],
+                    responses: { '200': { description: 'List of properties' } }
+                }
+            },
+            '/api/properties/{id}': {
+                get: {
+                    summary: 'Get a single property',
+                    tags: ['Properties'],
+                    parameters: [
+                        { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+                    ],
+                    responses: { '200': { description: 'Property details' } }
+                }
+            },
+            '/api/saved': {
+                post: {
+                    summary: 'Save a property',
+                    tags: ['Saved Properties'],
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: { propertyId: { type: 'string' } }
+                                }
+                            }
+                        }
+                    },
+                    responses: { '201': { description: 'Property saved' } }
+                },
+                get: {
+                    summary: 'Get all saved properties for logged-in user',
+                    tags: ['Saved Properties'],
+                    responses: { '200': { description: 'List of saved properties' } }
+                }
+            },
+            '/api/saved/{id}': {
+                delete: {
+                    summary: 'Remove a saved property',
+                    tags: ['Saved Properties'],
+                    parameters: [
+                        { in: 'path', name: 'id', required: true, schema: { type: 'string' } }
+                    ],
+                    responses: { '200': { description: 'Property removed from saved list' } }
+                }
+            }
+        }
     },
-    apis: ['./app.js'],
+    apis: [], // Keep this empty since we are no longer scanning comments
 };
+
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-/**
- * @swagger
- * /api/auth/register:
- * post:
- * summary: Register a new user
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * email: { type: string }
- * password: { type: string }
- * responses:
- * 201:
- * description: User registered successfully
- */
+// Routes
 app.post('/api/auth/register', validateRequest(authSchema), register);
-
-/**
- * @swagger
- * /api/auth/login:
- * post:
- * summary: Login user
- * tags: [Auth]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * email: { type: string }
- * password: { type: string }
- * responses:
- * 200:
- * description: Returns JWT token
- */
 app.post('/api/auth/login', validateRequest(authSchema), login);
 
-/**
- * @swagger
- * /api/properties:
- * post:
- * summary: Create a property listing
- * tags: [Properties]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * title: { type: string }
- * description: { type: string }
- * price: { type: number }
- * location: { type: string }
- * responses:
- * 201:
- * description: Property created
- * get:
- * summary: Get all properties
- * tags: [Properties]
- * parameters:
- * - in: query
- * name: page
- * schema: { type: integer }
- * - in: query
- * name: limit
- * schema: { type: integer }
- * - in: query
- * name: location
- * schema: { type: string }
- * responses:
- * 200:
- * description: List of properties
- */
 app.post('/api/properties', protect, validateRequest(propertySchema), createProperty);
 app.get('/api/properties', getProperties);
-
-/**
- * @swagger
- * /api/properties/{id}:
- * get:
- * summary: Get a single property
- * tags: [Properties]
- * parameters:
- * - in: path
- * name: id
- * required: true
- * schema: { type: string }
- * responses:
- * 200:
- * description: Property details
- */
 app.get('/api/properties/:id', getProperty);
 
-/**
- * @swagger
- * /api/saved:
- * post:
- * summary: Save a property
- * tags: [Saved Properties]
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * propertyId: { type: string }
- * responses:
- * 201:
- * description: Property saved
- * get:
- * summary: Get all saved properties for logged-in user
- * tags: [Saved Properties]
- * responses:
- * 200:
- * description: List of saved properties
- */
 app.post('/api/saved', protect, validateRequest(savedPropertySchema), saveProperty);
 app.get('/api/saved', protect, getSavedProperties);
-
-/**
- * @swagger
- * /api/saved/{id}:
- * delete:
- * summary: Remove a saved property
- * tags: [Saved Properties]
- * parameters:
- * - in: path
- * name: id
- * required: true
- * schema: { type: string }
- * responses:
- * 200:
- * description: Property removed from saved list
- */
 app.delete('/api/saved/:id', protect, removeSavedProperty);
 
 // Centralized Error Handling
